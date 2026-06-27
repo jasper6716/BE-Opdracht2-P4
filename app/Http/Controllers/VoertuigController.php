@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Voertuig;
 use App\Models\Instructeur;
 use App\Models\VoertuigInstructeur;
-use App\Models\TypeVoertuig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +26,7 @@ class VoertuigController extends Controller
         return view('voertuigen.instructeur', compact('voertuigen', 'instructeur'));
     }
 
-    // Alle voertuigen (voor scenario_02)
+    // Alle voertuigen
     public function alleVoertuigen()
     {
         $voertuigen = Voertuig::with(['typeVoertuig', 'actieveToewijzing.instructeur'])
@@ -45,7 +44,7 @@ class VoertuigController extends Controller
         return view('voertuigen.alle', compact('voertuigen'));
     }
 
-    // Lijst met alle beschikbare voertuigen (nog niet toegewezen)
+    // Lijst met alle beschikbare voertuigen
     public function beschikbareVoertuigen($instructeurId)
     {
         $instructeur = Instructeur::findOrFail($instructeurId);
@@ -65,7 +64,6 @@ class VoertuigController extends Controller
         $voertuig = Voertuig::with('typeVoertuig')->findOrFail($voertuigId);
         $instructeurs = Instructeur::where('IsActief', 1)->orderBy('Achternaam')->get();
 
-        // Bestaande actieve toewijzing ophalen
         $huidigeToewijzing = VoertuigInstructeur::where('VoertuigId', $voertuigId)
             ->where('IsActief', 1)
             ->first();
@@ -132,7 +130,7 @@ class VoertuigController extends Controller
             ->with('success', 'Voertuig succesvol gewijzigd.');
     }
 
-    // Verwijder een voertuig
+    // Voertuig verwijderen
     public function verwijder($id, Request $request)
     {
         try {
@@ -162,12 +160,43 @@ class VoertuigController extends Controller
         }
     }
 
-    // Toon de verwijderd melding
+    // Toon verwijderd melding
     public function verwijderdMelding($id, Request $request)
     {
         $instructeurId = $request->query('instructeur_id', 0);
         $context = $request->query('context', 'instructeur');
         
         return view('voertuigen.verwijderd', compact('id', 'instructeurId', 'context'));
+    }
+
+    // Voertuig terug toewijzen aan oorspronkelijke instructeur
+    public function terugToewijzen($id, Request $request)
+    {
+        try {
+            DB::transaction(function () use ($id, $request) {
+                $instructeurId = $request->input('instructeur_id');
+                
+                $oorspronkelijkeToewijzing = VoertuigInstructeur::where('VoertuigId', $id)
+                    ->where('InstructeurId', $instructeurId)
+                    ->where('IsActief', 0)
+                    ->first();
+                    
+                if (!$oorspronkelijkeToewijzing) {
+                    throw new \Exception('Geen oorspronkelijke toewijzing gevonden.');
+                }
+                
+                VoertuigInstructeur::where('VoertuigId', $id)
+                    ->where('IsActief', 1)
+                    ->update(['IsActief' => 0]);
+                
+                $oorspronkelijkeToewijzing->update(['IsActief' => 1]);
+            });
+
+            return redirect()->route('voertuigen.instructeur', $request->input('instructeur_id'))
+                ->with('success', 'Het geselecteerde voertuig is weer toegewezen aan de instructeur.');
+                
+        } catch (\Exception $e) {
+            return back()->with('error', 'Er is een fout opgetreden: ' . $e->getMessage());
+        }
     }
 }

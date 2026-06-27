@@ -27,9 +27,13 @@ class Instructeur extends Model
         return $this->hasMany(VoertuigInstructeur::class, 'InstructeurId')->where('IsActief', 1);
     }
 
+    public function alleVoertuigToewijzingen()
+    {
+        return $this->hasMany(VoertuigInstructeur::class, 'InstructeurId');
+    }
+
     public function scopeSortedBySterren($query)
     {
-        return $query->where('IsActief', 1)
-            ->orderBy('AantalSterren', 'DESC');
+        return $query->orderBy('AantalSterren', 'DESC');
     }
 }

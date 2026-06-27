@@ -30,4 +30,25 @@ class Voertuig extends Model
             ->where('IsActief', 1)
             ->with('instructeur');
     }
+
+    public function alleToewijzingen()
+    {
+        return $this->hasMany(VoertuigInstructeur::class, 'VoertuigId');
+    }
+
+    public function isToegewezenAan($instructeurId)
+    {
+        return $this->alleToewijzingen()
+            ->where('InstructeurId', $instructeurId)
+            ->where('IsActief', 1)
+            ->exists();
+    }
+
+    public function wasToegewezenAan($instructeurId)
+    {
+        return $this->alleToewijzingen()
+            ->where('InstructeurId', $instructeurId)
+            ->where('IsActief', 0)
+            ->exists();
+    }
 }

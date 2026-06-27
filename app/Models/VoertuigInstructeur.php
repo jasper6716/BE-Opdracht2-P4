@@ -23,4 +23,14 @@ class VoertuigInstructeur extends Model
     {
         return $this->belongsTo(Instructeur::class, 'InstructeurId');
     }
+
+    public function scopeActief($query)
+    {
+        return $query->where('IsActief', 1);
+    }
+
+    public function scopeInactief($query)
+    {
+        return $query->where('IsActief', 0);
+    }
 }
