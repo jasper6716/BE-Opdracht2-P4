@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alle beschikbare voertuigen</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-6xl mx-auto">
-        <a href="{{ route('voertuigen.instructeur', $instructeur->id) }}" class="text-blue-600 hover:underline mb-4 inline-block">
+        <a href="{{ route('voertuigen.instructeur', $instructeur->Id) }}" class="text-blue-600 hover:underline mb-4 inline-block">
             ← Terug naar voertuigen van {{ $instructeur->volledige_naam }}
         </a>
 
@@ -35,9 +36,9 @@
                         <td class="px-6 py-4">{{ $voertuig->Brandstof }}</td>
                         <td class="px-6 py-4">{{ $voertuig->Rijbewijscategorie }}</td>
                         <td class="px-6 py-4">
-                            <a href="{{ route('voertuig.wijzigen', ['id' => $voertuig->id, 'instructeur_id' => $instructeur->id]) }}" 
+                            <a href="{{ route('voertuig.wijzigen', ['id' => $voertuig->Id, 'instructeur_id' => $instructeur->Id]) }}" 
                                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-block">
-                                Wijzigen
+                                <i class="fas fa-plus"></i> Toewijzen
                             </a>
                         </td>
                     </tr>

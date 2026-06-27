@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class Voertuig extends Model
 {
     protected $table = 'voertuig';
+    protected $primaryKey = 'Id';
     public $timestamps = false;
 
     protected $fillable = [
-        'Kenteken', 'Type', 'Bouwjaar', 'Brandstof', 'TypeVoertuigId'
+        'Kenteken', 'Type', 'Bouwjaar', 'Brandstof', 'TypeVoertuigId', 'IsActief'
     ];
 
     public function typeVoertuig()
@@ -25,6 +26,8 @@ class Voertuig extends Model
 
     public function actieveToewijzing()
     {
-        return $this->hasOne(VoertuigInstructeur::class, 'VoertuigId')->where('IsActief', 1);
+        return $this->hasOne(VoertuigInstructeur::class, 'VoertuigId')
+            ->where('IsActief', 1)
+            ->with('instructeur');
     }
 }

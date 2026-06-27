@@ -7,15 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 class Instructeur extends Model
 {
     protected $table = 'instructeur';
+    protected $primaryKey = 'Id';
     public $timestamps = false;
 
     protected $fillable = [
-        'Voornaam', 'Tussenvoegsel', 'Achternaam', 'Mobiel', 'DatumInDienst', 'AantalSterren'
+        'Voornaam', 'Tussenvoegsel', 'Achternaam', 'Mobiel', 
+        'DatumInDienst', 'AantalSterren', 'IsActief'
     ];
 
     public function getVolledigeNaamAttribute()
     {
-        return trim($this->Voornaam . ' ' . ($this->Tussenvoegsel ? $this->Tussenvoegsel . ' ' : '') . $this->Achternaam);
+        return trim($this->Voornaam . ' ' . 
+            ($this->Tussenvoegsel ? $this->Tussenvoegsel . ' ' : '') . 
+            $this->Achternaam);
     }
 
     public function voertuigInstructeurs()
@@ -25,6 +29,7 @@ class Instructeur extends Model
 
     public function scopeSortedBySterren($query)
     {
-        return $query->where('IsActief', 1)->orderByRaw('LENGTH(AantalSterren) DESC')->orderBy('AantalSterren', 'DESC');
+        return $query->where('IsActief', 1)
+            ->orderBy('AantalSterren', 'DESC');
     }
 }

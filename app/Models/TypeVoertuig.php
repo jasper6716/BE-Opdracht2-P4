@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class TypeVoertuig extends Model
 {
     protected $table = 'type_voertuig';
+    protected $primaryKey = 'Id';
     public $timestamps = false;
 
-    protected $fillable = ['TypeVoertuig', 'Rijbewijscategorie'];
+    protected $fillable = [
+        'TypeVoertuig', 'Rijbewijscategorie', 'IsActief'
+    ];
 }

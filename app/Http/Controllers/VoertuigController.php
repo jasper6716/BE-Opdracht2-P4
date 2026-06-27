@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Voertuig;
 use App\Models\Instructeur;
 use App\Models\VoertuigInstructeur;
+use App\Models\TypeVoertuig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -20,10 +21,28 @@ class VoertuigController extends Controller
             ->join('voertuig_instructeur', 'voertuig.Id', '=', 'voertuig_instructeur.VoertuigId')
             ->where('voertuig_instructeur.InstructeurId', $instructeurId)
             ->where('voertuig_instructeur.IsActief', 1)
-            ->orderBy('type_voertuig.Rijbewijscategorie')
+            ->orderBy('type_voertuig.Rijbewijscategorie', 'DESC')
             ->paginate(4);
 
         return view('voertuigen.instructeur', compact('voertuigen', 'instructeur'));
+    }
+
+    // Alle voertuigen (voor scenario_02)
+    public function alleVoertuigen()
+    {
+        $voertuigen = Voertuig::with(['typeVoertuig', 'actieveToewijzing.instructeur'])
+            ->join('type_voertuig', 'voertuig.TypeVoertuigId', '=', 'type_voertuig.Id')
+            ->leftJoin('voertuig_instructeur', function($join) {
+                $join->on('voertuig.Id', '=', 'voertuig_instructeur.VoertuigId')
+                     ->where('voertuig_instructeur.IsActief', 1);
+            })
+            ->leftJoin('instructeur', 'voertuig_instructeur.InstructeurId', '=', 'instructeur.Id')
+            ->select('voertuig.*', 'type_voertuig.Rijbewijscategorie')
+            ->orderBy('voertuig.Bouwjaar', 'DESC')
+            ->orderBy('instructeur.Achternaam', 'DESC')
+            ->paginate(4);
+
+        return view('voertuigen.alle', compact('voertuigen'));
     }
 
     // Lijst met alle beschikbare voertuigen (nog niet toegewezen)
@@ -34,7 +53,7 @@ class VoertuigController extends Controller
         $voertuigen = Voertuig::whereDoesntHave('actieveToewijzing')
             ->join('type_voertuig', 'voertuig.TypeVoertuigId', '=', 'type_voertuig.Id')
             ->select('voertuig.*', 'type_voertuig.Rijbewijscategorie')
-            ->orderBy('type_voertuig.Rijbewijscategorie')
+            ->orderBy('type_voertuig.Rijbewijscategorie', 'DESC')
             ->paginate(4);
 
         return view('voertuigen.beschikbaar', compact('voertuigen', 'instructeur'));
@@ -52,10 +71,7 @@ class VoertuigController extends Controller
             ->first();
         $huidigeInstructeurId = $huidigeToewijzing ? $huidigeToewijzing->InstructeurId : null;
 
-        // instructeur_id uit de querystring (komt van "Toevoegen Voertuig")
         $contextInstructeurId = $request->query('instructeur_id');
-
-        // Als het voertuig nog niet is toegewezen, gebruik dan de context-instructeur als voorselectie
         $geselecteerdeInstructeurId = $huidigeInstructeurId ?? $contextInstructeurId;
 
         return view('voertuigen.wijzigen', compact(
@@ -74,7 +90,7 @@ class VoertuigController extends Controller
             'id' => 'required|exists:voertuig,Id',
             'Type' => 'required|string|max:50',
             'Brandstof' => 'required|string|max:20',
-            'Kenteken' => ['required', 'string', 'max:10', 'regex:/^[A-Z0-9]{2,3}-[A-Z0-9]{2}-[A-Z0-9]{1,2}$/i'],
+            'Kenteken' => ['required', 'string', 'max:10'],
             'InstructeurId' => 'required|exists:instructeur,Id',
             'oudeInstructeurId' => 'nullable|exists:instructeur,Id',
             'context_instructeur_id' => 'nullable|exists:instructeur,Id',
@@ -87,9 +103,7 @@ class VoertuigController extends Controller
             'Kenteken' => strtoupper($request->Kenteken),
         ]);
 
-        // Bepaal de redirect-instructeur
         if ($request->oudeInstructeurId) {
-            // Scenario 01/02: voertuig was al toegewezen
             if ($request->InstructeurId != $request->oudeInstructeurId) {
                 DB::transaction(function () use ($request) {
                     VoertuigInstructeur::where('VoertuigId', $request->id)
@@ -105,18 +119,55 @@ class VoertuigController extends Controller
             }
             $redirectInstructeur = $request->oudeInstructeurId;
         } else {
-            // Scenario 03: voertuig was nog niet toegewezen
             VoertuigInstructeur::create([
                 'VoertuigId' => $request->id,
                 'InstructeurId' => $request->InstructeurId,
                 'DatumToekenning' => now()->toDateString(),
                 'IsActief' => 1,
             ]);
-            // Redirect naar de instructeur uit de context (of de zojuist gekozen)
             $redirectInstructeur = $request->context_instructeur_id ?? $request->InstructeurId;
         }
 
         return redirect()->route('voertuigen.instructeur', $redirectInstructeur)
             ->with('success', 'Voertuig succesvol gewijzigd.');
+    }
+
+    // Verwijder een voertuig
+    public function verwijder($id, Request $request)
+    {
+        try {
+            DB::transaction(function () use ($id) {
+                $toewijzing = VoertuigInstructeur::where('VoertuigId', $id)
+                    ->where('IsActief', 1)
+                    ->first();
+
+                if (!$toewijzing) {
+                    throw new \Exception('Voertuig is niet toegewezen aan een instructeur.');
+                }
+
+                $toewijzing->update(['IsActief' => 0]);
+            });
+
+            $instructeurId = $request->query('instructeur_id', 0);
+            $context = $request->query('context', 'instructeur');
+
+            return redirect()->route('voertuig.verwijderd', [
+                'id' => $id,
+                'instructeur_id' => $instructeurId,
+                'context' => $context
+            ]);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Er is een fout opgetreden: ' . $e->getMessage());
+        }
+    }
+
+    // Toon de verwijderd melding
+    public function verwijderdMelding($id, Request $request)
+    {
+        $instructeurId = $request->query('instructeur_id', 0);
+        $context = $request->query('context', 'instructeur');
+        
+        return view('voertuigen.verwijderd', compact('id', 'instructeurId', 'context'));
     }
 }
